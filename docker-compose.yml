@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_KEY=base64:J92e7Yg5+P+/H3XhT+6+6aH21cZ9Q6U8+6o/W5hU4lE=
+      - BUILD_VERSION=1.0.0
+      - DB_CONNECTION=sqlite
+      - DB_DATABASE=/app/database/database.sqlite
+    networks:
+      - aiops-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - aiops-net
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - aiops-net
+    depends_on:
+      - prometheus
+
+networks:
+  aiops-net:
+    driver: bridge

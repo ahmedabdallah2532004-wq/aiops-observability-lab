@@ -1,0 +1,6 @@
+{
+  "anomaly_start_iso": "2026-03-09T16:55:27.095282Z",
+  "anomaly_end_iso": "2026-03-09T17:00:27.295282Z",
+  "anomaly_type": "error_spike",
+  "expected_behavior": "Spike in /api/error to 40% of total traffic, causing increased error rates and system instability."
+}
