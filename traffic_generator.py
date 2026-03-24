@@ -5,14 +5,14 @@ import uuid
 from datetime import datetime
 import os
 
-TOTAL_REQUESTS = 3600
+TOTAL_REQUESTS = 1500
 ANOMALY_START_REQ = 1000
 ANOMALY_END_REQ = 2500
 
-LOG_FILE = "storage/logs/logs.json"
-AIOPS_LOG = "storage/logs/aiops.log"
+LOG_FILE = "app_temp/storage/logs/logs.json"
+AIOPS_LOG = "app_temp/storage/logs/aiops.log"
 
-os.makedirs("storage/logs", exist_ok=True)
+os.makedirs("app_temp/storage/logs", exist_ok=True)
 
 def get_base_distribution():
     return [
@@ -89,7 +89,7 @@ def simulate_request(endpoint, timestamp):
     }
 
 print("Generating logs...")
-start_time = datetime.utcnow().timestamp() - 7200
+start_time = datetime.utcnow().timestamp() - 360
 anomaly_start_iso = None
 anomaly_end_iso = None
 
