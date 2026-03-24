@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 import os
 
-TOTAL_REQUESTS = 1500
+TOTAL_REQUESTS = 10000
 ANOMALY_START_REQ = 1000
 ANOMALY_END_REQ = 2500
 
