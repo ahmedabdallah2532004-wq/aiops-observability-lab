@@ -1,0 +1,23 @@
+{
+    "incident_id": "INC-20260324-001",
+    "root_cause_endpoint": "/api/error",
+    "primary_signal": "failure surge",
+    "supporting_evidence": {
+        "endpoint_stats": {
+            "latency_spike": 4.813084044003666,
+            "error_surge": 6612.428571428572,
+            "traffic_change": 1.6448827292110872
+        },
+        "error_distribution": {
+            "SYSTEM_ERROR": 67
+        }
+    },
+    "timeline": {
+        "normal_state": "System operating within baseline parameters. Latency < 2000ms for /api/slow, Error rate ~15 per window for /api/error.",
+        "anomaly_start": "2026-03-24 19:00:10",
+        "peak_incident": "2026-03-24 19:03:00 (Max error rate reached)",
+        "recovery": "2026-03-24 19:05:45"
+    },
+    "confidence_score": 0.95,
+    "recommended_action": "Investigate upstream dependency for /api/error. Implement circuit breaker for /api/slow to prevent cascading latency."
+}
