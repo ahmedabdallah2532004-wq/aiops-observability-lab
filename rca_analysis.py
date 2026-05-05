@@ -2,6 +2,7 @@ import pandas as pd
 import json
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
 from datetime import datetime
 
 # Configuration
@@ -10,7 +11,8 @@ PREDICTIONS_PATH = 'anomaly_predictions.csv'
 ANOMALY_START = '2026-03-24 19:00:10'
 ANOMALY_END = '2026-03-24 19:05:45'
 REPORT_PATH = 'rca_report.json'
-PLOT_PATH = 'incident_timeline.png'
+TIMELINE_PLOT_PATH = 'incident_timeline.png'
+ERROR_PLOT_PATH = 'error_distribution.png'
 
 def run_rca():
     print("Loading datasets...")
@@ -21,10 +23,11 @@ def run_rca():
     anomaly_window = df[(df['timestamp'] >= ANOMALY_START) & (df['timestamp'] <= ANOMALY_END)]
     normal_window = df[(df['timestamp'] < ANOMALY_START)]
     
-    # 2. Signal Analysis
-    print("Analyzing signals...")
+    # 2. Signal Analysis & Endpoint Attribution
+    print("Analyzing signals and performing endpoint attribution...")
     endpoints = df['endpoint'].unique()
-    attribution = {}
+    attribution_scores = {}
+    signal_stats = {}
     
     for ep in endpoints:
         ep_anomaly = anomaly_window[anomaly_window['endpoint'] == ep]
@@ -33,29 +36,43 @@ def run_rca():
         if ep_anomaly.empty or ep_normal.empty:
             continue
             
-        latency_increase = ep_anomaly['avg_latency'].mean() - ep_normal['avg_latency'].mean()
-        error_count_increase = ep_anomaly['errors_per_window'].sum() - ep_normal['errors_per_window'].mean() * len(ep_anomaly)
-        request_rate_increase = ep_anomaly['request_rate'].mean() - ep_normal['request_rate'].mean()
+        # Calculate Z-Scores for attribution
+        latency_mean = ep_normal['avg_latency'].mean()
+        latency_std = ep_normal['avg_latency'].std() if ep_normal['avg_latency'].std() > 0 else 1
+        latency_z = (ep_anomaly['avg_latency'].mean() - latency_mean) / latency_std
         
-        attribution[ep] = {
-            'latency_spike': latency_increase,
-            'error_surge': error_count_increase,
-            'traffic_change': request_rate_increase
+        error_mean = ep_normal['errors_per_window'].mean()
+        error_std = ep_normal['errors_per_window'].std() if ep_normal['errors_per_window'].std() > 0 else 1
+        error_z = (ep_anomaly['errors_per_window'].mean() - error_mean) / error_std
+        
+        traffic_mean = ep_normal['request_rate'].mean()
+        traffic_std = ep_normal['request_rate'].std() if ep_normal['request_rate'].std() > 0 else 1
+        traffic_z = (ep_anomaly['request_rate'].mean() - traffic_mean) / traffic_std
+        
+        # Combined score (weighted: errors and latency carry more weight in AIOps)
+        attribution_scores[ep] = (error_z * 0.5) + (latency_z * 0.4) + (traffic_z * 0.1)
+        
+        signal_stats[ep] = {
+            "latency_delta_ms": ep_anomaly['avg_latency'].mean() - latency_mean,
+            "error_surge_count": ep_anomaly['errors_per_window'].sum() - (error_mean * len(ep_anomaly)),
+            "traffic_increase_pct": ((ep_anomaly['request_rate'].mean() - traffic_mean) / traffic_mean) * 100 if traffic_mean > 0 else 0,
+            "latency_z_score": latency_z,
+            "error_z_score": error_z
         }
 
-    # 3. Endpoint Attribution
-    # Determine root cause by finding the endpoint with the highest combined deviation
-    root_cause_endpoint = max(attribution, key=lambda k: abs(attribution[k]['error_surge']) + abs(attribution[k]['latency_spike']/100))
-    primary_signal = "failure surge" if attribution[root_cause_endpoint]['error_surge'] > 10 else "latency spike"
+    # 3. Determine Root Cause
+    root_cause_endpoint = max(attribution_scores, key=attribution_scores.get)
+    primary_signal = "failure surge" if signal_stats[root_cause_endpoint]['error_z_score'] > signal_stats[root_cause_endpoint]['latency_z_score'] else "latency spike"
     
     # 4. Error Category Analysis
-    error_cats = anomaly_window[anomaly_window['endpoint'] == root_cause_endpoint]['error_category'].value_counts().to_dict()
+    print("Analyzing error categories...")
+    error_cats = anomaly_window['error_category'].value_counts().to_dict()
     
     # 5. Incident Timeline Description
     timeline = {
-        "normal_state": "System operating within baseline parameters. Latency < 2000ms for /api/slow, Error rate ~15 per window for /api/error.",
+        "normal_state": "System operating within baseline parameters. Latency < 2000ms for /api/slow, Error rate stable for /api/error.",
         "anomaly_start": ANOMALY_START,
-        "peak_incident": "2026-03-24 19:03:00 (Max error rate reached)",
+        "peak_incident": str(anomaly_window.loc[anomaly_window['errors_per_window'].idxmax(), 'timestamp']) if not anomaly_window.empty else "N/A",
         "recovery": ANOMALY_END
     }
     
@@ -65,32 +82,45 @@ def run_rca():
         "root_cause_endpoint": root_cause_endpoint,
         "primary_signal": primary_signal,
         "supporting_evidence": {
-            "endpoint_stats": attribution[root_cause_endpoint],
-            "error_distribution": error_cats
+            "attribution_score": attribution_scores[root_cause_endpoint],
+            "endpoint_stats": signal_stats[root_cause_endpoint],
+            "system_error_distribution": error_cats
         },
         "timeline": timeline,
-        "confidence_score": 0.95,
-        "recommended_action": "Investigate upstream dependency for /api/error. Implement circuit breaker for /api/slow to prevent cascading latency."
+        "confidence_score": min(0.99, 0.7 + (attribution_scores[root_cause_endpoint] / 100)), # Simplified confidence
+        "recommended_action": f"Immediate: Scale resources for {root_cause_endpoint}. Long-term: Implement circuit breakers and investigate upstream dependencies."
     }
     
     with open(REPORT_PATH, 'w') as f:
         json.dump(report, f, indent=4)
     print(f"RCA Report saved to {REPORT_PATH}")
 
-    # Visualization
-    print("Generating incident timeline visualization...")
-    plt.figure(figsize=(12, 8))
+    # 7. Visualizations
+    print("Generating visualizations...")
     
-    sns.lineplot(data=df, x='timestamp', y='avg_latency', hue='endpoint', alpha=0.7)
+    # Plot 1: Timeline
+    plt.figure(figsize=(12, 6))
+    sns.lineplot(data=df, x='timestamp', y='avg_latency', hue='endpoint')
     plt.axvspan(pd.to_datetime(ANOMALY_START), pd.to_datetime(ANOMALY_END), color='red', alpha=0.2, label='Anomaly Window')
-    plt.title('System Latency Timeline - Incident INC-20260324-001')
-    plt.ylabel('Average Latency (ms)')
-    plt.xlabel('Timestamp')
+    plt.title('Incident Timeline: Latency Signals')
+    plt.ylabel('Latency (ms)')
+    plt.xlabel('Time')
     plt.xticks(rotation=45)
     plt.legend()
     plt.tight_layout()
-    plt.savefig(PLOT_PATH)
-    print(f"Visualization saved to {PLOT_PATH}")
+    plt.savefig(TIMELINE_PLOT_PATH)
+    
+    # Plot 2: Error Distribution
+    plt.figure(figsize=(10, 6))
+    if error_cats:
+        plt.pie(error_cats.values(), labels=error_cats.keys(), autopct='%1.1f%%', colors=sns.color_palette('viridis'))
+        plt.title('Error Category Distribution during Incident')
+    else:
+        plt.text(0.5, 0.5, 'No errors detected', ha='center')
+    plt.tight_layout()
+    plt.savefig(ERROR_PLOT_PATH)
+    
+    print(f"Visualizations saved: {TIMELINE_PLOT_PATH}, {ERROR_PLOT_PATH}")
 
 if __name__ == "__main__":
     run_rca()

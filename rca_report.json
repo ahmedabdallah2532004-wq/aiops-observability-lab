@@ -3,21 +3,28 @@
     "root_cause_endpoint": "/api/error",
     "primary_signal": "failure surge",
     "supporting_evidence": {
+        "attribution_score": 22.701553265242,
         "endpoint_stats": {
-            "latency_spike": 4.813084044003666,
-            "error_surge": 6612.428571428572,
-            "traffic_change": 1.6448827292110872
+            "latency_delta_ms": 4.813084044003666,
+            "error_surge_count": 6612.428571428572,
+            "traffic_increase_pct": 750.9247242050617,
+            "latency_z_score": 1.1562948956924919,
+            "error_z_score": 37.065058844941674
         },
-        "error_distribution": {
-            "SYSTEM_ERROR": 67
+        "system_error_distribution": {
+            "NONE": 78,
+            "TIMEOUT_ERROR": 67,
+            "SYSTEM_ERROR": 67,
+            "DATABASE_ERROR": 67,
+            "VALIDATION_ERROR": 56
         }
     },
     "timeline": {
-        "normal_state": "System operating within baseline parameters. Latency < 2000ms for /api/slow, Error rate ~15 per window for /api/error.",
+        "normal_state": "System operating within baseline parameters. Latency < 2000ms for /api/slow, Error rate stable for /api/error.",
         "anomaly_start": "2026-03-24 19:00:10",
-        "peak_incident": "2026-03-24 19:03:00 (Max error rate reached)",
+        "peak_incident": "2026-03-24 19:03:15.165568+00:00",
         "recovery": "2026-03-24 19:05:45"
     },
-    "confidence_score": 0.95,
-    "recommended_action": "Investigate upstream dependency for /api/error. Implement circuit breaker for /api/slow to prevent cascading latency."
+    "confidence_score": 0.92701553265242,
+    "recommended_action": "Immediate: Scale resources for /api/error. Long-term: Implement circuit breakers and investigate upstream dependencies."
 }
