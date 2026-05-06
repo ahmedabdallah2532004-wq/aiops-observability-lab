@@ -118,5 +118,29 @@
         "timestamp": "2026-03-31T22:57:43+00:00",
         "result": "SUCCESS",
         "notes": "Successfully executed incident_escalation simulation."
+    },
+    {
+        "incident_id": "test-latency-001",
+        "incident_type": "LATENCY_SPIKE",
+        "action_taken": "restart_service",
+        "timestamp": "2026-05-05T23:54:26+00:00",
+        "result": "SUCCESS",
+        "notes": "Successfully executed restart_service simulation."
+    },
+    {
+        "incident_id": "test-error-001",
+        "incident_type": "ERROR_STORM",
+        "action_taken": "send_alert",
+        "timestamp": "2026-05-05T23:54:26+00:00",
+        "result": "SUCCESS",
+        "notes": "Successfully executed send_alert simulation."
+    },
+    {
+        "incident_id": "test-surge-001",
+        "incident_type": "TRAFFIC_SURGE",
+        "action_taken": "scale_service",
+        "timestamp": "2026-05-05T23:54:26+00:00",
+        "result": "SUCCESS",
+        "notes": "Successfully executed scale_service simulation."
     }
 ]
